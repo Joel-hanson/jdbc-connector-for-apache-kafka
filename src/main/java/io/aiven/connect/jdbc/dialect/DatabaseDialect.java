@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Aiven Oy and jdbc-connector-for-apache-kafka project contributors
+ * Copyright 2024 Aiven Oy and jdbc-connector-for-apache-kafka project contributors
  * Copyright 2018 Confluent Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -361,6 +361,20 @@ public interface DatabaseDialect extends ConnectionProvider {
     }
 
     /**
+     * Build the DELETE prepared statement expression for the given table and its columns.
+     *
+     * @param table      the identifier of the table; may not be null
+     * @param keyColumns the identifiers of the columns in the primary/unique key; may not be null
+     *                   but may be empty
+     * @return the DELETE statement; may not be null
+     */
+    default String buildDeleteStatement(TableId table,
+                                        int records,
+                                        Collection<ColumnId> keyColumns) {
+        return buildDeleteStatement(table, records, keyColumns);
+    }
+
+    /**
      * Build the UPDATE prepared statement expression for the given table and its columns. Variables
      * for each key column should also appear in the WHERE clause of the statement.
      *
@@ -524,6 +538,16 @@ public interface DatabaseDialect extends ConnectionProvider {
          * @throws SQLException if there is a problem binding values into the statement
          */
         int bindRecord(int index, SinkRecord record) throws SQLException;
+
+        /**
+         * Bind the values in the supplied tombstone record.
+         *
+         * @param record the sink record with values to be bound into the statement; never null
+         * @throws SQLException if there is a problem binding values into the statement
+         */
+        default void bindTombstoneRecord(SinkRecord record) throws SQLException {
+            bindTombstoneRecord(record);
+        }
     }
 
     /**

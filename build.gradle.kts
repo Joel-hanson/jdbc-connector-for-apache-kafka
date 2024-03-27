@@ -164,6 +164,7 @@ dependencies {
 
     runtimeOnly("org.xerial:sqlite-jdbc:3.45.2.0")
     runtimeOnly("org.postgresql:postgresql:42.7.3")
+    runtimeOnly("com.oracle.database.jdbc:ojdbc8:19.3.0.0")
     runtimeOnly("net.sourceforge.jtds:jtds:1.3.1")
     runtimeOnly("net.snowflake:snowflake-jdbc:3.14.2")
     runtimeOnly("com.microsoft.sqlserver:mssql-jdbc:12.6.1.jre11")
@@ -204,6 +205,8 @@ dependencies {
     integrationTestImplementation("org.testcontainers:kafka:$testcontainersVersion") // this is not Kafka version
     integrationTestImplementation("org.testcontainers:testcontainers:$testcontainersVersion")
     integrationTestImplementation("org.testcontainers:postgresql:$testcontainersVersion")
+    integrationTestImplementation("org.testcontainers:oracle-free:$testcontainersVersion")
+
     integrationTestImplementation("org.awaitility:awaitility:$awaitilityVersion")
     integrationTestImplementation("org.assertj:assertj-db:2.0.2")
 

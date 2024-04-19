@@ -17,6 +17,7 @@
 
 package io.aiven.connect.jdbc.dialect;
 
+import java.util.Arrays;
 import java.util.List;
 
 import org.apache.kafka.connect.data.Date;
@@ -26,6 +27,7 @@ import org.apache.kafka.connect.data.Schema.Type;
 import org.apache.kafka.connect.data.Time;
 import org.apache.kafka.connect.data.Timestamp;
 
+import io.aiven.connect.jdbc.sink.metadata.SinkRecordField;
 import io.aiven.connect.jdbc.util.TableId;
 
 import org.junit.Test;
@@ -175,6 +177,17 @@ public class OracleDatabaseDialectTest extends BaseDialectTest<OracleDatabaseDia
                 + "key2=value2&key3=value3&user=smith&password=secret&other=value",
             "jdbc:oracle:thin:@myhost:1111/db?password=****&key1=value1&"
                 + "key2=value2&key3=value3&user=smith&password=****&other=value"
+        );
+    }
+
+    @Test
+    public void createOneColOneVarcharPk() {
+        final String expected = readQueryResourceForThisTest("create_table_one_col_one_varchar_pk");
+        assertQueryEquals(expected,
+                dialect.buildCreateTableStatement(
+                        tableId,
+                        Arrays.asList(new SinkRecordField(Schema.STRING_SCHEMA, "pk1", true))
+                )
         );
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 Aiven Oy and jdbc-connector-for-apache-kafka project contributors
+ * Copyright 2024 Aiven Oy and jdbc-connector-for-apache-kafka project contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,22 +40,24 @@ public class AbstractPostgresIT extends AbstractIT {
                     .withTag(DEFAULT_POSTGRES_TAG);
 
     @Container
-    protected final PostgreSQLContainer<?> postgreSqlContainer = new PostgreSQLContainer<>(DEFAULT_POSTGRES_IMAGE_NAME);
+    public static final PostgreSQLContainer<?> POSTGRES_CONTAINER = new PostgreSQLContainer<>(
+            DEFAULT_POSTGRES_IMAGE_NAME
+    );
 
-    protected void executeUpdate(final String updateStatement) throws SQLException {
+    protected void executeSqlStatement(final String sqlStatement) throws SQLException {
         try (final Connection connection = getDatasource().getConnection();
              final Statement statement = connection.createStatement()) {
-            statement.executeUpdate(updateStatement);
+            statement.executeUpdate(sqlStatement);
         }
     }
 
     protected DataSource getDatasource() {
         final PGSimpleDataSource pgSimpleDataSource = new PGSimpleDataSource();
-        pgSimpleDataSource.setServerNames(Arrays.array(postgreSqlContainer.getHost()));
-        pgSimpleDataSource.setPortNumbers(new int[] {postgreSqlContainer.getMappedPort(5432)});
-        pgSimpleDataSource.setDatabaseName(postgreSqlContainer.getDatabaseName());
-        pgSimpleDataSource.setUser(postgreSqlContainer.getUsername());
-        pgSimpleDataSource.setPassword(postgreSqlContainer.getPassword());
+        pgSimpleDataSource.setServerNames(Arrays.array(POSTGRES_CONTAINER.getHost()));
+        pgSimpleDataSource.setPortNumbers(new int[] {POSTGRES_CONTAINER.getMappedPort(5432)});
+        pgSimpleDataSource.setDatabaseName(POSTGRES_CONTAINER.getDatabaseName());
+        pgSimpleDataSource.setUser(POSTGRES_CONTAINER.getUsername());
+        pgSimpleDataSource.setPassword(POSTGRES_CONTAINER.getPassword());
         return pgSimpleDataSource;
     }
 
@@ -66,9 +68,9 @@ public class AbstractPostgresIT extends AbstractIT {
         config.put("value.converter", "io.confluent.connect.avro.AvroConverter");
         config.put("value.converter.schema.registry.url", schemaRegistryContainer.getSchemaRegistryUrl());
         config.put("tasks.max", "1");
-        config.put("connection.url", postgreSqlContainer.getJdbcUrl());
-        config.put("connection.user", postgreSqlContainer.getUsername());
-        config.put("connection.password", postgreSqlContainer.getPassword());
+        config.put("connection.url", POSTGRES_CONTAINER.getJdbcUrl());
+        config.put("connection.user", POSTGRES_CONTAINER.getUsername());
+        config.put("connection.password", POSTGRES_CONTAINER.getPassword());
         config.put("dialect.name", "PostgreSqlDatabaseDialect");
         return config;
     }

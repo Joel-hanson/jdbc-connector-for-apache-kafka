@@ -51,9 +51,9 @@ public class AbstractOracleIT extends AbstractIT {
         final OracleDataSource dataSource = new OracleDataSource();
         dataSource.setServerName(ORACLE_CONTAINER.getHost());
         // Assuming the default Oracle port is 1521
-        dataSource.setPortNumber(ORACLE_CONTAINER.getMappedPort(1521)); 
+        dataSource.setPortNumber(ORACLE_CONTAINER.getMappedPort(1521));
         // Or use setDatabaseName() if that's how your Oracle is configured
-        dataSource.setServiceName(ORACLE_CONTAINER.getDatabaseName()); 
+        dataSource.setServiceName(ORACLE_CONTAINER.getDatabaseName());
         dataSource.setUser(ORACLE_CONTAINER.getUsername());
         dataSource.setPassword(ORACLE_CONTAINER.getPassword());
         dataSource.setDriverType("thin");

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.aiven.kafka.connect.jdbc.oracle;
+package io.aiven.kafka.connect.jdbc.postgres;
 
 import java.sql.SQLException;
 import java.time.Duration;
@@ -39,9 +39,9 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.db.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-public class VerifyDeleteIT extends AbstractOracleIT {
+public class VerifyDeleteIT extends AbstractPostgresIT {
 
-    private static final String TEST_TOPIC_NAME = "SINK_TOPIC";
+    private static final String TEST_TOPIC_NAME = "sink_topic";
     private static final String CONNECTOR_NAME = "test-sink-connector";
     private static final int TEST_TOPIC_PARTITIONS = 1;
 
@@ -62,9 +62,9 @@ public class VerifyDeleteIT extends AbstractOracleIT {
 
     private static final String DROP_TABLE = String.format("DROP TABLE IF EXISTS %s", TEST_TOPIC_NAME);
     private static final String CREATE_TABLE = String.format("CREATE TABLE \"%s\" (\n"
-            + "    \"id\" NUMBER NOT NULL,\n"
-            + "    \"name\" VARCHAR2(255) NOT NULL,\n"
-            + "    \"value\" VARCHAR2(255) NOT NULL,\n"
+            + "    \"id\" VARCHAR(30) NOT NULL,\n"
+            + "    \"name\" VARCHAR(255) NOT NULL,\n"
+            + "    \"value\" VARCHAR(255) NOT NULL,\n"
             + "PRIMARY KEY(\"id\")"
             + ")", TEST_TOPIC_NAME);
 

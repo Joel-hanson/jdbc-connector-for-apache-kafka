@@ -367,11 +367,12 @@ public interface DatabaseDialect extends ConnectionProvider {
      * @param keyColumns the identifiers of the columns in the primary/unique key; may not be null
      *                   but may be empty
      * @return the DELETE statement; may not be null
+     * @throws UnsupportedOperationException if the dialect does not support delete
      */
     default String buildDeleteStatement(TableId table,
                                         int records,
                                         Collection<ColumnId> keyColumns) {
-        return buildDeleteStatement(table, records, keyColumns);
+        throw new UnsupportedOperationException();
     }
 
     /**
@@ -544,9 +545,10 @@ public interface DatabaseDialect extends ConnectionProvider {
          *
          * @param record the sink record with values to be bound into the statement; never null
          * @throws SQLException if there is a problem binding values into the statement
+         * @throws UnsupportedOperationException if binding values is not supported
          */
-        default void bindTombstoneRecord(SinkRecord record) throws SQLException {
-            bindTombstoneRecord(record);
+        default void bindTombstoneRecord(SinkRecord record) throws SQLException, UnsupportedOperationException {
+            throw new UnsupportedOperationException();
         }
     }
 

@@ -52,8 +52,8 @@ public class BufferedRecords {
     private final DbStructure dbStructure;
     private final Connection connection;
 
-    private List<SinkRecord> records = new ArrayList<>();
-    private List<SinkRecord> tombstoneRecords = new ArrayList<>();
+    private final List<SinkRecord> records = new ArrayList<>();
+    private final List<SinkRecord> tombstoneRecords = new ArrayList<>();
     private SchemaPair currentSchemaPair;
     private FieldsMetadata fieldsMetadata;
     private TableDefinition tableDefinition;
@@ -91,15 +91,16 @@ public class BufferedRecords {
 
         final List<SinkRecord> flushed;
         // Skip the schemaPair check for all tombstone records or the current schema pair matches
-        if (record.valueSchema() == null || currentSchemaPair.equals(schemaPair)) {
+        if (record.value() == null || currentSchemaPair.equals(schemaPair)) {
             // Continue with current batch state
             if (config.deleteEnabled && isTombstone(record)) {
                 tombstoneRecords.add(record);
             } else {
                 records.add(record);
             }
-            if (records.size() >= config.batchSize || tombstoneRecords.size() >= config.batchSize) {
-                log.debug("Flushing buffered records {} and tombstone records {} after exceeding the configured batch size of {}.",
+            if (records.size() + tombstoneRecords.size() >= config.batchSize) {
+                log.debug("Flushing buffered records {} and tombstone records {} "
+                                + "after exceeding the configured batch size of {}.",
                         records.size(), tombstoneRecords.size(), config.batchSize);
                 flushed = flush();
             } else {
@@ -121,7 +122,8 @@ public class BufferedRecords {
         close();
         if (!records.isEmpty()) {
             final String insertSql = config.insertMode == MULTI ? getMultiInsertSql() : getInsertSql();
-            log.debug("Prepared SQL for insert mode {} with {} records: {}", config.insertMode, records.size(), insertSql);
+            log.debug("Prepared SQL for insert mode {} with {} records: {}",
+                    config.insertMode, records.size(), insertSql);
             preparedStatement = connection.prepareStatement(insertSql);
             preparedStatementBinder = dbDialect.statementBinder(
                     preparedStatement,
@@ -173,51 +175,65 @@ public class BufferedRecords {
             log.debug("Records and tombstone records are empty.");
             return new ArrayList<>();
         }
+
         prepareStatement();
         bindRecords();
+
+        processBatch(records, "regular");
+        processBatch(tombstoneRecords, "tombstone");
+
+        final List<SinkRecord> flushedRecords = new ArrayList<>(records);
+        flushedRecords.addAll(tombstoneRecords);
+
+        records.clear();
+        tombstoneRecords.clear();
+
+        return flushedRecords;
+    }
+
+    private void processBatch(final List<SinkRecord> batchRecords, final String recordType) throws SQLException {
+        if (batchRecords.isEmpty()) {
+            log.debug("No {} records to process.", recordType);
+            return;
+        }
 
         int totalSuccessfulExecutionCount = 0;
         boolean successNoInfo = false;
 
-        log.debug("Executing batch...");
-        for (final int updateCount : executeBatch()) {
+        log.debug("Executing {} record batch...", recordType);
+        final int[] updateCounts = recordType.equals("tombstone") ? executeDeleteBatch() : executeBatch();
+        for (final int updateCount : updateCounts) {
             if (updateCount == Statement.SUCCESS_NO_INFO) {
                 successNoInfo = true;
-                continue;
+            } else {
+                totalSuccessfulExecutionCount += updateCount;
             }
-            totalSuccessfulExecutionCount += updateCount;
         }
-        for (final int deleteCount : executeDeleteBatch()) {
-            if (deleteCount == Statement.SUCCESS_NO_INFO) {
-                successNoInfo = true;
-                continue;
-            }
-            totalSuccessfulExecutionCount += deleteCount;
-        }
-        log.debug("Done executing batch.");
-        verifySuccessfulExecutions(totalSuccessfulExecutionCount, successNoInfo);
 
-        final List<SinkRecord> flushedRecords = records;
-        records = new ArrayList<>();
-        return flushedRecords;
+        log.debug("Done executing {} record batch.", recordType);
+        verifySuccessfulExecutions(totalSuccessfulExecutionCount, batchRecords, successNoInfo, recordType);
     }
 
-    private void verifySuccessfulExecutions(final int totalSuccessfulExecutionCount, final boolean successNoInfo) {
-        if (totalSuccessfulExecutionCount != records.size() + tombstoneRecords.size() && !successNoInfo) {
+    private void verifySuccessfulExecutions(final int totalSuccessfulExecutionCount,
+                                            final List<SinkRecord> batchRecords,
+                                            final boolean successNoInfo,
+                                            final String recordType) {
+        if (totalSuccessfulExecutionCount != batchRecords.size() && !successNoInfo) {
             switch (config.insertMode) {
                 case INSERT:
                 case MULTI:
                     throw new ConnectException(String.format(
-                            "Update count (%d) did not sum up to total number of records (%d)",
+                            "Update count (%d) did not sum up to total number of %s records (%d)",
                             totalSuccessfulExecutionCount,
-                            records.size() + tombstoneRecords.size()
+                            recordType,
+                            batchRecords.size()
                     ));
                 case UPSERT:
                 case UPDATE:
-                    log.debug(
-                            "{} records:{} resulting in totalSuccessfulExecutionCount:{}",
+                    log.debug("{} {} records:{} resulting in totalSuccessfulExecutionCount:{}",
                             config.insertMode,
-                            records.size()  + tombstoneRecords.size(),
+                            recordType,
+                            batchRecords.size(),
                             totalSuccessfulExecutionCount
                     );
                     break;
@@ -225,11 +241,12 @@ public class BufferedRecords {
                     throw new ConnectException("Unknown insert mode: " + config.insertMode);
             }
         }
+
         if (successNoInfo) {
-            log.info(
-                    "{} records:{} , but no count of the number of rows it affected is available",
+            log.info("{} {} records:{} , but no count of the number of rows it affected is available",
                     config.insertMode,
-                    records.size() + tombstoneRecords.size()
+                    recordType,
+                    batchRecords.size()
             );
         }
     }
@@ -274,6 +291,7 @@ public class BufferedRecords {
     }
 
     private boolean isTombstone(final SinkRecord record) {
+        // Tombstone records are events with a null value.
         return record.value() == null;
     }
 

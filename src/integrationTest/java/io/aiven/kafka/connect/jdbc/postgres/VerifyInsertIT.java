@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.aiven.kafka.connect.jdbc.oracle;
+package io.aiven.kafka.connect.jdbc.postgres;
 
 import java.sql.SQLException;
 import java.time.Duration;
@@ -39,9 +39,9 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.db.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-public class VerifyInsertIT extends AbstractOracleIT {
+public class VerifyInsertIT extends AbstractPostgresIT {
 
-    private static final String TEST_TOPIC_NAME = "SINK_TOPIC";
+    private static final String TEST_TOPIC_NAME = "sink_topic";
     private static final String CONNECTOR_NAME = "test-sink-connector";
     private static final int TEST_TOPIC_PARTITIONS = 1;
     private static final Schema VALUE_RECORD_SCHEMA = new Schema.Parser().parse("{\n"
@@ -64,15 +64,14 @@ public class VerifyInsertIT extends AbstractOracleIT {
             + "}");
     private static final String DROP_TABLE = String.format("DROP TABLE IF EXISTS %s", TEST_TOPIC_NAME);
     private static final String CREATE_TABLE_WITH_PK = String.format("CREATE TABLE \"%s\" (\n"
-            + "    \"id\" NUMBER NOT NULL,\n"
-            + "    \"name\" VARCHAR2(255) NOT NULL,\n"
-            + "    \"value\" VARCHAR2(255) NOT NULL,\n"
-            + "PRIMARY KEY(\"id\")"
+            + "    \"id\" VARCHAR(30) NOT NULL PRIMARY KEY,\n"
+            + "    \"name\" VARCHAR(255) NOT NULL,\n"
+            + "    \"value\" VARCHAR(255) NOT NULL\n"
             + ")", TEST_TOPIC_NAME);
     private static final String CREATE_TABLE = String.format("CREATE TABLE \"%s\" (\n"
-            + "    \"id\" NUMBER NOT NULL,\n"
-            + "    \"name\" VARCHAR2(255) NOT NULL,\n"
-            + "    \"value\" VARCHAR2(255) NOT NULL\n"
+            + "    \"id\" VARCHAR(30) NOT NULL,\n"
+            + "    \"name\" VARCHAR(255) NOT NULL,\n"
+            + "    \"value\" VARCHAR(255) NOT NULL\n"
             + ")", TEST_TOPIC_NAME);
 
 
@@ -140,6 +139,26 @@ public class VerifyInsertIT extends AbstractOracleIT {
 
         // Start the sink connector
         connectRunner.createConnector(basicSinkConnectorConfig());
+
+        // Send test data to Kafka topic
+        sendTestData(1);
+
+        await().atMost(Duration.ofSeconds(6)).pollInterval(Duration.ofSeconds(2))
+                .untilAsserted(() -> {
+                    assertThat(new Table(getDatasource(), TEST_TOPIC_NAME)).hasNumberOfRows(1);
+                    assertThat(new Table(getDatasource(), TEST_TOPIC_NAME)).column("ID")
+                            .value().isEqualTo("0");
+                });
+    }
+
+    @Test
+    public void testSinkConnectorWithAutoCreate() throws Exception {
+        createTopic(TEST_TOPIC_NAME, 1); // Create Kafka topic matching the table name
+
+        // Start the sink connector
+        final Map<String, String> config = basicSinkConnectorConfig();
+        config.put("auto.create", "true");
+        connectRunner.createConnector(config);
 
         // Send test data to Kafka topic
         sendTestData(1);
